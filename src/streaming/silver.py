@@ -1,6 +1,57 @@
 from pyspark.sql import SparkSession
 
+from src.transformations.data_quality import (
+    get_invalid_events,
+    get_valid_events,
+)
 from src.transformations.silver import transform_silver
+
+
+SILVER_PATH = "data/silver/events"
+QUARANTINE_PATH = "data/quarantine/events"
+
+
+def process_batch(batch_df, batch_id) -> None:
+    """Process one Bronze micro-batch."""
+
+    valid_df = get_valid_events(batch_df)
+
+    invalid_df = (
+        get_invalid_events(batch_df)
+        .dropDuplicates(["event_id"])
+    )
+
+    # Write invalid records to Quarantine
+    if not invalid_df.isEmpty():
+
+        (
+            invalid_df
+            .write
+            .mode("append")
+            .parquet(QUARANTINE_PATH)
+        )
+
+        print(
+            f"Silver batch {batch_id}: "
+            f"invalid events sent to Quarantine"
+        )
+
+    # Transform and write valid records to Silver
+    if not valid_df.isEmpty():
+
+        silver_df = transform_silver(valid_df)
+
+        (
+            silver_df
+            .write
+            .mode("append")
+            .parquet(SILVER_PATH)
+        )
+
+        print(
+            f"Silver batch {batch_id}: "
+            f"valid events written to Silver"
+        )
 
 
 def main() -> None:
@@ -31,14 +82,10 @@ def main() -> None:
         .load("data/bronze/events")
     )
 
-    silver_df = transform_silver(bronze_df)
-
     query = (
-        silver_df
+        bronze_df
         .writeStream
-        .format("parquet")
-        .outputMode("append")
-        .option("path", "data/silver/events")
+        .foreachBatch(process_batch)
         .option(
             "checkpointLocation",
             "data/checkpoints/silver",

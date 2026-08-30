@@ -24,6 +24,7 @@ metastore_db/
 data/bronze/
 data/silver/
 data/gold/
+data/quarantine/
 data/checkpoints/
 
 # Logs
