@@ -1,34 +1,35 @@
 # Real-Time Data Platform
 
-End-to-end real-time data engineering platform built with Python, Apache Kafka, PySpark, and Delta Lake.
+End-to-end real-time data engineering platform built with Python, Apache Kafka, PySpark Structured Streaming, and Delta Lake.
+
+The project simulates an e-commerce platform that generates events in real time, processes them through a Medallion Architecture, validates data quality, sends invalid records to a Quarantine Layer, and produces order-level aggregations.
 
 ## Architecture
 
-The platform processes e-commerce events in real time using a Medallion Architecture with an additional Quarantine layer for invalid events:
-
 ```text
 Event Generator
-      │
-      ▼
+       │
+       ▼
 Apache Kafka
-      │
-      ▼
+       │
+       ▼
 Bronze Layer
 Raw events stored as Parquet
-      │
-      ▼
-Data Quality Validation
-      │
-      ├──────────────────► Quarantine Layer
-      │                   Invalid events
-      │
-      ▼
+       │
+       ▼
 Silver Layer
+Data quality validation
+       │
+       ├──────────────► Quarantine Layer
+       │                Invalid events
+       │
+       ▼
 Cleaned and enriched events
-      │
-      ▼
+       │
+       ▼
 Gold Layer
-Order-level aggregations stored in Delta Lake
+Order-level aggregations
+stored in Delta Lake
 ```
 
 ## Technologies
@@ -40,12 +41,15 @@ Order-level aggregations stored in Delta Lake
 - Delta Lake
 - Parquet
 - Pytest
+- Coverage
+- Ruff
+- GitHub Actions
 
 ## Project Structure
 
 ```text
 real-time-data-platform/
-│
+
 ├── docker/
 │   └── docker-compose.yml
 │
@@ -70,16 +74,23 @@ real-time-data-platform/
 │   └── utils/
 │       ├── read_bronze.py
 │       ├── read_silver.py
-│       ├── read_gold.py
-│       └── read_quarantine.py
+│       └── read_gold.py
 │
 ├── tests/
 │   ├── test_event_generator.py
 │   ├── test_data_quality.py
 │   ├── test_silver.py
-│   └── test_gold.py
+│   ├── test_gold.py
+│   ├── test_bronze.py
+│   ├── test_silver_streaming.py
+│   └── test_gold_streaming.py
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 │
 ├── requirements.txt
+├── .gitignore
 └── README.md
 ```
 
@@ -87,13 +98,15 @@ real-time-data-platform/
 
 ### 1. Event Generator
 
-A Python producer generates simulated e-commerce events:
+A Python producer generates simulated e-commerce events.
 
-- `order_created`
-- `order_item_added`
-- `payment_completed`
-- `order_shipped`
-- `order_delivered`
+The following event types are generated:
+
+- order_created
+- order_item_added
+- payment_completed
+- order_shipped
+- order_delivered
 
 Events are published to the Kafka topic:
 
@@ -101,11 +114,23 @@ Events are published to the Kafka topic:
 ecommerce-events
 ```
 
+Run the event generator:
+
+```bash
+python -m src.producer.event_generator
+```
+
+The project also includes a producer for testing invalid events:
+
+```bash
+python -m src.producer.send_invalid_event
+```
+
 ### 2. Bronze Layer
 
 The Bronze streaming job consumes events from Kafka.
 
-Kafka JSON messages are parsed using a predefined PySpark schema and written to Parquet:
+Kafka JSON messages are parsed using a predefined PySpark schema and stored as raw Parquet files.
 
 ```text
 Kafka
@@ -121,71 +146,74 @@ Output:
 data/bronze/events
 ```
 
-### 3. Data Quality and Quarantine Layer
+Checkpoint:
 
-Before events are processed by the Silver layer, data quality validations are applied.
+```text
+data/checkpoints/bronze
+```
 
-An event is considered valid when:
+Run the Bronze streaming job:
 
-- `event_id` is not null.
-- `order_id` is not null.
-- `event_type` belongs to one of the supported event types.
+```bash
+python -m src.streaming.bronze
+```
 
-Supported event types:
+### 3. Silver Layer
 
-- `order_created`
-- `order_item_added`
-- `payment_completed`
-- `order_shipped`
-- `order_delivered`
+The Silver streaming job reads events from the Bronze Layer.
 
-Additionally, `order_item_added` events must contain:
+Each micro-batch is processed using foreachBatch.
 
-- A non-null `product_id`.
-- A `quantity` greater than zero.
-- A non-null `unit_price`.
-- A `unit_price` greater than zero.
+The pipeline separates valid and invalid records.
 
-Invalid events are separated from valid events and stored in the Quarantine layer:
+#### Data Quality Validation
+
+Valid events must meet the required data quality rules.
+
+Invalid events are separated from valid events.
+
+Duplicate invalid events are removed using:
+
+- event_id
+
+#### Quarantine Layer
+
+Invalid events are stored separately in the Quarantine Layer.
 
 ```text
 data/quarantine/events
 ```
 
-This prevents invalid data from reaching the Silver and Gold layers while preserving the original records for inspection and troubleshooting.
-
-The flow is:
+This prevents invalid records from entering the Silver and Gold layers while preserving them for investigation and debugging.
 
 ```text
-Bronze Events
-      │
-      ▼
-Data Quality Validation
-      │
-      ├──────────────► Quarantine
-      │                Invalid Events
-      │
-      ▼
-Valid Events
-      │
-      ▼
-Silver Layer
+Bronze Batch
+     │
+     ├── Valid Events
+     │       │
+     │       ▼
+     │   Transform
+     │       │
+     │       ▼
+     │   Silver Layer
+     │
+     └── Invalid Events
+             │
+             ▼
+      Remove duplicates
+             │
+             ▼
+      Quarantine Layer
 ```
 
-A dedicated producer is also included to generate an invalid event for testing:
+#### Silver Transformations
 
-```text
-src/producer/send_invalid_event.py
-```
+Valid events are transformed by:
 
-### 4. Silver Layer
-
-The Silver streaming job processes valid Bronze events and applies data transformations:
-
-- Removes duplicate events using `event_id`.
-- Converts `event_timestamp` to `TIMESTAMP`.
-- Calculates `line_amount`.
-- Adds a `processing_timestamp`.
+- Removing duplicate events using event_id
+- Converting event_timestamp to TIMESTAMP
+- Calculating line_amount
+- Adding processing_timestamp
 
 Output:
 
@@ -193,29 +221,85 @@ Output:
 data/silver/events
 ```
 
-### 5. Gold Layer
+Checkpoint:
 
-The Gold streaming job aggregates order item events.
+```text
+data/checkpoints/silver
+```
 
-For each order, it calculates:
+Run the Silver streaming job:
 
-- Customer ID.
-- Total number of items.
-- Total order amount.
+```bash
+python -m src.streaming.silver
+```
 
-The results are stored as a Delta Lake table:
+### 4. Gold Layer
+
+The Gold streaming job reads events from the Silver Layer.
+
+The pipeline aggregates order_item_added events at order level.
+
+For each order it calculates:
+
+- customer_id
+- total_items
+- total_amount
+
+Output:
 
 ```text
 data/gold/order_summary
 ```
 
-The Gold layer uses:
+The Gold Layer uses:
 
-- `foreachBatch`
+- foreachBatch
 - Delta Lake
-- Delta `MERGE`
+- Delta MERGE
 
-This allows incremental updates to existing orders.
+#### Delta Table Creation
+
+During the first batch, the pipeline checks whether the Delta table already exists.
+
+If it does not exist, it creates the table.
+
+#### Incremental Updates
+
+If the Delta table already exists, new batches are merged using Delta MERGE.
+
+```text
+Silver Events
+      │
+      ▼
+Order Aggregation
+      │
+      ▼
+foreachBatch
+      │
+      ▼
+Delta Table Exists?
+      │
+ ┌────┴─────┐
+ │          │
+No         Yes
+ │          │
+ ▼          ▼
+CREATE     MERGE
+DELTA      DELTA
+TABLE      TABLE
+```
+
+Checkpoint:
+
+```text
+data/checkpoints/gold_order_summary
+```
+
+Run the Gold streaming job:
+
+```bash
+python -m src.streaming.gold
+```
 
 ## Running the Project
 
@@ -223,7 +307,6 @@ This allows incremental updates to existing orders.
 
 ```bash
 conda create -n real-time-data-platform python=3.12
-
 conda activate real-time-data-platform
 ```
 
@@ -245,13 +328,15 @@ Verify that Kafka is running:
 docker ps
 ```
 
-### 3. Start the Bronze streaming job
+### 3. Start Bronze
+
+In the first terminal:
 
 ```bash
 python -m src.streaming.bronze
 ```
 
-### 4. Start the Silver streaming job
+### 4. Start Silver
 
 In another terminal:
 
@@ -259,15 +344,15 @@ In another terminal:
 python -m src.streaming.silver
 ```
 
-### 5. Start the Gold streaming job
+### 5. Start Gold
 
-After the Silver layer has generated data, start Gold in another terminal:
+In another terminal:
 
 ```bash
 python -m src.streaming.gold
 ```
 
-### 6. Start the event generator
+### 6. Start the Event Generator
 
 In another terminal:
 
@@ -279,31 +364,15 @@ The complete pipeline is:
 
 ```text
 Event Generator
-      ↓
-Kafka
-      ↓
+       ↓
+Apache Kafka
+       ↓
 Bronze
-      ↓
-Data Quality Validation
-      ├────────► Quarantine
-      ↓
+       ↓
 Silver
-      ↓
+       ├──────► Quarantine
+       ↓
 Gold
-```
-
-### 7. Send an Invalid Event
-
-To test the Quarantine layer:
-
-```bash
-python -m src.producer.send_invalid_event
-```
-
-The invalid event should be processed by Bronze and then stored in:
-
-```text
-data/quarantine/events
 ```
 
 ## Reading the Data
@@ -326,81 +395,192 @@ python -m src.utils.read_silver
 python -m src.utils.read_gold
 ```
 
-### Quarantine
-
-```bash
-python -m src.utils.read_quarantine
-```
-
-Example Quarantine output:
-
-```text
-+----------------+----------------+-----------+-----------+----------+--------+----------+-------------------------+
-|event_id        |event_type      |order_id   |customer_id|product_id|quantity|unit_price|event_timestamp          |
-+----------------+----------------+-----------+-----------+----------+--------+----------+-------------------------+
-|invalid-test-001|order_item_added|ORD-INVALID|CUST-TEST  |PROD-TEST |-5      |100.00    |2026-08-30T12:00:00+00:00|
-+----------------+----------------+-----------+-----------+----------+--------+----------+-------------------------+
-```
-
 Example Gold output:
 
 ```text
-+--------+-----------+------------+-------------+
-|order_id|customer_id|total_items |total_amount |
-+--------+-----------+------------+-------------+
-|ORD-2179|CUST-171  |8           |2771.43      |
-|ORD-2184|CUST-852  |8           |3455.58      |
-|ORD-5520|CUST-480  |17          |4268.79      |
-+--------+-----------+------------+-------------+
++--------+-----------+-----------+------------+
+|order_id|customer_id|total_items|total_amount|
++--------+-----------+-----------+------------+
+|ORD-1732|CUST-628   |1          |380.17      |
+|ORD-2125|CUST-988   |2          |971.54      |
+|ORD-3800|CUST-908   |7          |2050.41     |
++--------+-----------+-----------+------------+
 ```
 
 ## Testing
 
-Run the test suite:
+Run the complete test suite:
 
 ```bash
 pytest -v
 ```
 
-Current tests cover:
+The project includes unit tests for:
 
-- Event generation.
-- Data quality validation.
-- Silver transformations.
-- Gold aggregations.
+- Event generation
+- Event schema
+- Data quality validation
+- Silver transformations
+- Gold transformations
+- Invalid event producer
+- Bronze streaming configuration
+- Silver micro-batch processing
+- Quarantine Layer
+- Gold Delta table creation
+- Gold Delta MERGE
+- Gold streaming configuration
+
+### Code Coverage
+
+Run the test suite with coverage:
+
+```bash
+pytest --cov=src --cov-report=term-missing
+```
+
+Current test coverage:
+
+```text
+94%
+```
+
+The streaming components are tested using mocks to validate:
+
+- Spark configuration
+- Structured Streaming configuration
+- foreachBatch
+- Checkpoints
+- Parquet reads
+- Delta table creation
+- Delta MERGE
+
+## Code Quality
+
+Ruff is used for linting and code quality checks.
+
+Run Ruff:
+
+```bash
+ruff check .
+```
+
+Automatically fix supported issues:
+
+```bash
+ruff check . --fix
+```
+
+## Continuous Integration
+
+GitHub Actions runs automatically on repository changes.
+
+The CI pipeline performs the following steps:
+
+```text
+Checkout repository
+        ↓
+Set up Python
+        ↓
+Install dependencies
+        ↓
+Run Pytest
+        ↓
+Run Ruff
+```
+
+This ensures that tests must pass before code quality checks are executed.
 
 ## Key Concepts Demonstrated
 
 This project demonstrates:
 
-- Real-time event processing.
-- Apache Kafka.
-- Docker.
-- PySpark Structured Streaming.
-- Medallion Architecture.
-- Bronze, Silver, and Gold layers.
-- Data quality validation.
-- Quarantine layer for invalid events.
-- Parquet.
-- Delta Lake.
-- Delta `MERGE`.
-- `foreachBatch`.
-- Checkpointing.
-- Data transformations.
-- Unit testing with Pytest.
+- Real-time event processing
+- Apache Kafka
+- Docker
+- PySpark Structured Streaming
+- Medallion Architecture
+- Bronze, Silver, and Gold layers
+- Data quality validation
+- Quarantine Layer
+- Parquet
+- Delta Lake
+- Delta MERGE
+- foreachBatch
+- Micro-batch processing
+- Checkpointing
+- Incremental processing
+- Unit testing
+- Mocking Spark and Delta components
+- Code coverage
+- Ruff
+- CI/CD with GitHub Actions
 
 ## Future Improvements
 
 Possible future improvements include:
 
-- More advanced schema validation.
-- Detailed error reasons in the Quarantine layer.
-- Kafka multi-broker setup.
-- Airflow orchestration.
-- CI/CD with GitHub Actions.
-- Cloud deployment using Google Cloud Platform.
-- Google Cloud Storage.
-- Dataproc.
-- BigQuery.
-- Terraform infrastructure provisioning.
-- Monitoring and alerting.
+- Schema validation
+- More advanced data quality rules
+- Data quality metrics
+- Monitoring and alerting
+- Kafka multi-broker setup
+- Kafka Schema Registry
+- Airflow orchestration
+- Cloud deployment
+- Google Cloud Storage
+- Dataproc
+- BigQuery
+- Terraform infrastructure provisioning
+- Production monitoring
+- Centralized logging
+- GitHub Actions deployment pipeline
+
+## Future Cloud Architecture
+
+The next phase of the project will move the local platform to Google Cloud.
+
+```text
+Kafka / Event Source
+        ↓
+Google Cloud Storage
+        ↓
+Dataproc + PySpark
+        ↓
+BigQuery
+        ↓
+Analytics
+```
+
+Infrastructure will be provisioned using Terraform.
+
+Future CI/CD will automate:
+
+```text
+Code
+ ↓
+Tests
+ ↓
+Linting
+ ↓
+Build
+ ↓
+Cloud Deployment
+```
+
+## Project Status
+
+The local version of the real-time data platform is complete.
+
+Current implementation includes:
+
+- Real-time Kafka ingestion
+- Bronze, Silver, and Gold layers
+- Data Quality validation
+- Quarantine Layer
+- Delta Lake incremental processing
+- Automated tests
+- 94% test coverage
+- Ruff code quality checks
+- GitHub Actions CI
+
+The next stage is cloud deployment on Google Cloud Platform.
