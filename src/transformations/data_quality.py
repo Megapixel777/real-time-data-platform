@@ -1,7 +1,6 @@
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col
 
-
 VALID_EVENT_TYPES = [
     "order_created",
     "order_item_added",

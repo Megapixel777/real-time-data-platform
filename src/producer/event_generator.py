@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 
 from kafka import KafkaProducer
 
-
 TOPIC_NAME = "ecommerce-events"
 
 

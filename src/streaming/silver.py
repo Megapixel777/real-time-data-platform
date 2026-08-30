@@ -6,7 +6,6 @@ from src.transformations.data_quality import (
 )
 from src.transformations.silver import transform_silver
 
-
 SILVER_PATH = "data/silver/events"
 QUARANTINE_PATH = "data/quarantine/events"
 

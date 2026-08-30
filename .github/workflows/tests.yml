@@ -31,3 +31,7 @@ jobs:
       - name: Run tests
         run: |
           pytest -v
+
+      - name: Run Ruff
+        run: |
+          ruff check .

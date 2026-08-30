@@ -2,7 +2,6 @@ import json
 
 from kafka import KafkaProducer
 
-
 TOPIC_NAME = "ecommerce-events"
 
 

@@ -1,6 +1,5 @@
 from pyspark.sql import SparkSession
 
-
 QUARANTINE_PATH = "data/quarantine/events"
 
 

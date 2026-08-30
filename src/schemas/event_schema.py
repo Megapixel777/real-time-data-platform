@@ -6,7 +6,6 @@ from pyspark.sql.types import (
     StructType,
 )
 
-
 event_schema = StructType(
     [
         StructField("event_id", StringType(), False),

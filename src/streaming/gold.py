@@ -1,10 +1,8 @@
 from delta import configure_spark_with_delta_pip
 from delta.tables import DeltaTable
-
 from pyspark.sql import SparkSession
 
 from src.transformations.gold import transform_to_order_summary
-
 
 GOLD_PATH = "data/gold/order_summary"
 

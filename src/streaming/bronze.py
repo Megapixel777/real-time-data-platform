@@ -3,7 +3,6 @@ from pyspark.sql.functions import col, from_json
 
 from src.schemas.event_schema import event_schema
 
-
 KAFKA_PACKAGE = "org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0"
 
 
