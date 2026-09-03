@@ -29,3 +29,13 @@ data/checkpoints/
 
 # Logs
 *.log
+
+# Terraform
+terraform/terraform.tfvars
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform/
+
+# Spark / GCS JARs
+jars/
+

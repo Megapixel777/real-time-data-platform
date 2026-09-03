@@ -2,12 +2,7 @@ from pyspark.sql import SparkSession
 
 
 def main() -> None:
-    spark = (
-        SparkSession.builder
-        .appName("read-silver")
-        .master("local[*]")
-        .getOrCreate()
-    )
+    spark = SparkSession.builder.appName("read-silver").master("local[*]").getOrCreate()
 
     df = spark.read.parquet("data/silver/events")
 

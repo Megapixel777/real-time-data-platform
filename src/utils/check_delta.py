@@ -3,11 +3,7 @@ from pyspark.sql import SparkSession
 
 
 def main() -> None:
-    builder = (
-        SparkSession.builder
-        .appName("delta-test")
-        .master("local[*]")
-    )
+    builder = SparkSession.builder.appName("delta-test").master("local[*]")
 
     spark = configure_spark_with_delta_pip(builder).getOrCreate()
 

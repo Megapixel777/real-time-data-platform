@@ -10,8 +10,7 @@ def transform_to_order_summary(
     """
 
     return (
-        batch_df
-        .filter(col("event_type") == "order_item_added")
+        batch_df.filter(col("event_type") == "order_item_added")
         .groupBy("order_id")
         .agg(
             first("customer_id").alias("customer_id"),

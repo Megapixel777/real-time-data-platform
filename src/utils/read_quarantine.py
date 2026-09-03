@@ -6,20 +6,12 @@ QUARANTINE_PATH = "data/quarantine/events"
 def main() -> None:
 
     spark = (
-        SparkSession.builder
-        .appName("read-quarantine")
-        .master("local[*]")
-        .getOrCreate()
+        SparkSession.builder.appName("read-quarantine").master("local[*]").getOrCreate()
     )
 
-    df = (
-        spark.read
-        .parquet(QUARANTINE_PATH)
-    )
+    df = spark.read.parquet(QUARANTINE_PATH)
 
-    df.show(
-        truncate=False
-    )
+    df.show(truncate=False)
 
     spark.stop()
 

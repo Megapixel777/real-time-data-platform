@@ -49,23 +49,18 @@ def test_process_batch_creates_delta_table(
     )
 
     # Se crea la tabla Delta
-    mock_order_summary_df.write.format.assert_called_once_with(
-        "delta"
+    mock_order_summary_df.write.format.assert_called_once_with("delta")
+
+    (
+        mock_order_summary_df.write.format.return_value.mode.assert_called_once_with(
+            "overwrite"
+        )
     )
 
     (
-        mock_order_summary_df.write
-        .format.return_value
-        .mode
-        .assert_called_once_with("overwrite")
-    )
-
-    (
-        mock_order_summary_df.write
-        .format.return_value
-        .mode.return_value
-        .save
-        .assert_called_once_with(gold.GOLD_PATH)
+        mock_order_summary_df.write.format.return_value.mode.return_value.save.assert_called_once_with(
+            gold.GOLD_PATH
+        )
     )
 
 
@@ -103,9 +98,7 @@ def test_process_batch_merges_existing_delta_table(
     mock_gold_table.alias.assert_called_once_with("gold")
 
     # Alias de los nuevos datos
-    mock_order_summary_df.alias.assert_called_once_with(
-        "updates"
-    )
+    mock_order_summary_df.alias.assert_called_once_with("updates")
 
     # MERGE
     mock_gold_table.alias.return_value.merge.assert_called_once_with(
@@ -115,12 +108,7 @@ def test_process_batch_merges_existing_delta_table(
 
     # Ejecuta el MERGE
     (
-        mock_gold_table.alias.return_value
-        .merge.return_value
-        .whenMatchedUpdate.return_value
-        .whenNotMatchedInsert.return_value
-        .execute
-        .assert_called_once()
+        mock_gold_table.alias.return_value.merge.return_value.whenMatchedUpdate.return_value.whenNotMatchedInsert.return_value.execute.assert_called_once()
     )
 
 
@@ -134,40 +122,26 @@ def test_gold_main(
     mock_builder = Mock()
 
     (
-        mock_spark_session.builder
-        .appName.return_value
-        .master.return_value
-        .config.return_value
-        .config.return_value
-        .config.return_value
+        mock_spark_session.builder.appName.return_value.master.return_value.config.return_value.config.return_value.config.return_value
     ) = mock_builder
 
     # Spark creado mediante Delta
     mock_spark = Mock()
 
-    (
-        mock_configure_delta.return_value
-        .getOrCreate.return_value
-    ) = mock_spark
+    (mock_configure_delta.return_value.getOrCreate.return_value) = mock_spark
 
     # DataFrame leído desde Silver
     mock_silver_df = Mock()
 
     (
-        mock_spark.readStream
-        .format.return_value
-        .schema.return_value
-        .load.return_value
+        mock_spark.readStream.format.return_value.schema.return_value.load.return_value
     ) = mock_silver_df
 
     # Query de streaming
     mock_query = Mock()
 
     (
-        mock_silver_df.writeStream
-        .foreachBatch.return_value
-        .option.return_value
-        .start.return_value
+        mock_silver_df.writeStream.foreachBatch.return_value.option.return_value.start.return_value
     ) = mock_query
 
     # Ejecutamos main()
@@ -177,88 +151,57 @@ def test_gold_main(
     # Verificamos Spark builder
     # ------------------------------------------
 
-    mock_spark_session.builder.appName.assert_called_once_with(
-        "gold-layer"
-    )
+    mock_spark_session.builder.appName.assert_called_once_with("gold-layer")
 
     (
-        mock_spark_session.builder
-        .appName.return_value
-        .master
-        .assert_called_once_with("local[*]")
+        mock_spark_session.builder.appName.return_value.master.assert_called_once_with(
+            "local[*]"
+        )
     )
 
     # Verificamos las configuraciones
     (
-        mock_spark_session.builder
-        .appName.return_value
-        .master.return_value
-        .config
-        .assert_called_once_with(
+        mock_spark_session.builder.appName.return_value.master.return_value.config.assert_called_once_with(
             "spark.sql.shuffle.partitions",
             "4",
         )
     )
 
     # Delta recibe el builder final
-    mock_configure_delta.assert_called_once_with(
-        mock_builder
-    )
+    mock_configure_delta.assert_called_once_with(mock_builder)
 
     # Se crea Spark
-    (
-        mock_configure_delta.return_value
-        .getOrCreate
-        .assert_called_once()
-    )
+    (mock_configure_delta.return_value.getOrCreate.assert_called_once())
 
     # ------------------------------------------
     # Verificamos lectura streaming de Silver
     # ------------------------------------------
 
-    mock_spark.readStream.format.assert_called_once_with(
-        "parquet"
-    )
+    mock_spark.readStream.format.assert_called_once_with("parquet")
+
+    (mock_spark.readStream.format.return_value.schema.assert_called_once())
 
     (
-        mock_spark.readStream
-        .format.return_value
-        .schema
-        .assert_called_once()
-    )
-
-    (
-        mock_spark.readStream
-        .format.return_value
-        .schema.return_value
-        .load
-        .assert_called_once_with("data/silver/events")
+        mock_spark.readStream.format.return_value.schema.return_value.load.assert_called_once_with(
+            "data/silver/events"
+        )
     )
 
     # ------------------------------------------
     # Verificamos escritura streaming Gold
     # ------------------------------------------
 
-    mock_silver_df.writeStream.foreachBatch.assert_called_once_with(
-        gold.process_batch
-    )
+    mock_silver_df.writeStream.foreachBatch.assert_called_once_with(gold.process_batch)
 
     (
-        mock_silver_df.writeStream
-        .foreachBatch.return_value
-        .option
-        .assert_called_once_with(
+        mock_silver_df.writeStream.foreachBatch.return_value.option.assert_called_once_with(
             "checkpointLocation",
             "data/checkpoints/gold_order_summary",
         )
     )
 
     (
-        mock_silver_df.writeStream
-        .foreachBatch.return_value
-        .option.return_value
-        .start
-        .assert_called_once()
+        mock_silver_df.writeStream.foreachBatch.return_value.option.return_value.start.assert_called_once()
     )
 
     # Verificamos que el streaming queda activo

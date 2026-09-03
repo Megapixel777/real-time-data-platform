@@ -5,12 +5,7 @@ from src.transformations.silver import transform_silver
 
 def test_silver_transformation():
 
-    spark = (
-        SparkSession.builder
-        .master("local[2]")
-        .appName("test-silver")
-        .getOrCreate()
-    )
+    spark = SparkSession.builder.master("local[2]").appName("test-silver").getOrCreate()
 
     data = [
         (

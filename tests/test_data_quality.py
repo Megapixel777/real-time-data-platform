@@ -11,8 +11,7 @@ from src.transformations.data_quality import (
 def test_data_quality():
 
     spark = (
-        SparkSession.builder
-        .master("local[2]")
+        SparkSession.builder.master("local[2]")
         .appName("test-data-quality")
         .getOrCreate()
     )
@@ -73,8 +72,7 @@ def test_data_quality():
 def test_invalid_events_are_deduplicated():
 
     spark = (
-        SparkSession.builder
-        .master("local[2]")
+        SparkSession.builder.master("local[2]")
         .appName("test-quarantine-deduplication")
         .getOrCreate()
     )
@@ -112,10 +110,7 @@ def test_invalid_events_are_deduplicated():
 
     df = spark.createDataFrame(data, columns)
 
-    invalid_df = (
-        get_invalid_events(df)
-        .dropDuplicates(["event_id"])
-    )
+    invalid_df = get_invalid_events(df).dropDuplicates(["event_id"])
 
     assert invalid_df.count() == 1
 

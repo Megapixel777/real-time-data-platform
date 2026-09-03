@@ -7,12 +7,7 @@ from src.transformations.gold import transform_to_order_summary
 
 def test_gold_transformation():
 
-    spark = (
-        SparkSession.builder
-        .master("local[2]")
-        .appName("test-gold")
-        .getOrCreate()
-    )
+    spark = SparkSession.builder.master("local[2]").appName("test-gold").getOrCreate()
 
     data = [
         (

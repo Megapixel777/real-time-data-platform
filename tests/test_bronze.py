@@ -15,11 +15,7 @@ def test_bronze_main(
     mock_spark = Mock()
 
     (
-        mock_spark_session.builder
-        .appName.return_value
-        .master.return_value
-        .config.return_value
-        .getOrCreate.return_value
+        mock_spark_session.builder.appName.return_value.master.return_value.config.return_value.getOrCreate.return_value
     ) = mock_spark
 
     # Mock de las funciones PySpark
@@ -38,30 +34,19 @@ def test_bronze_main(
     mock_kafka_df = Mock()
 
     (
-        mock_spark.readStream
-        .format.return_value
-        .option.return_value
-        .option.return_value
-        .load.return_value
+        mock_spark.readStream.format.return_value.option.return_value.option.return_value.load.return_value
     ) = mock_kafka_df
 
     # Events DataFrame
     mock_events_df = Mock()
 
-    mock_kafka_df.select.return_value.select.return_value = (
-        mock_events_df
-    )
+    mock_kafka_df.select.return_value.select.return_value = mock_events_df
 
     # Streaming query
     mock_query = Mock()
 
     (
-        mock_events_df.writeStream
-        .format.return_value
-        .outputMode.return_value
-        .option.return_value
-        .option.return_value
-        .start.return_value
+        mock_events_df.writeStream.format.return_value.outputMode.return_value.option.return_value.option.return_value.start.return_value
     ) = mock_query
 
     # Ejecutamos el código real
@@ -76,39 +61,27 @@ def test_bronze_main(
     )
 
     (
-        mock_spark_session.builder
-        .appName.return_value
-        .master
-        .assert_called_once_with("local[*]")
+        mock_spark_session.builder.appName.return_value.master.assert_called_once_with(
+            "local[*]"
+        )
     )
 
     (
-        mock_spark_session.builder
-        .appName.return_value
-        .master.return_value
-        .config
-        .assert_called_once_with(
+        mock_spark_session.builder.appName.return_value.master.return_value.config.assert_called_once_with(
             "spark.jars.packages",
             bronze.KAFKA_PACKAGE,
         )
     )
 
     (
-        mock_spark_session.builder
-        .appName.return_value
-        .master.return_value
-        .config.return_value
-        .getOrCreate
-        .assert_called_once()
+        mock_spark_session.builder.appName.return_value.master.return_value.config.return_value.getOrCreate.assert_called_once()
     )
 
     # --------------------------------------------------
     # Verificamos Kafka
     # --------------------------------------------------
 
-    mock_spark.readStream.format.assert_called_once_with(
-        "kafka"
-    )
+    mock_spark.readStream.format.assert_called_once_with("kafka")
 
     mock_spark.readStream.format.return_value.option.assert_any_call(
         "kafka.bootstrap.servers",
@@ -116,11 +89,7 @@ def test_bronze_main(
     )
 
     (
-        mock_spark.readStream
-        .format.return_value
-        .option.return_value
-        .option
-        .assert_called_once_with(
+        mock_spark.readStream.format.return_value.option.return_value.option.assert_called_once_with(
             "subscribe",
             "ecommerce-events",
         )
@@ -145,15 +114,12 @@ def test_bronze_main(
     # Verificamos salida Parquet
     # --------------------------------------------------
 
-    mock_events_df.writeStream.format.assert_called_once_with(
-        "parquet"
-    )
+    mock_events_df.writeStream.format.assert_called_once_with("parquet")
 
     (
-        mock_events_df.writeStream
-        .format.return_value
-        .outputMode
-        .assert_called_once_with("append")
+        mock_events_df.writeStream.format.return_value.outputMode.assert_called_once_with(
+            "append"
+        )
     )
 
     # --------------------------------------------------

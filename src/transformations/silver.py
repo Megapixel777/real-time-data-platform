@@ -9,17 +9,14 @@ from pyspark.sql.types import DecimalType
 
 def transform_silver(df: DataFrame) -> DataFrame:
     return (
-        df
-        .dropDuplicates(["event_id"])
+        df.dropDuplicates(["event_id"])
         .withColumn(
             "event_timestamp",
             to_timestamp(col("event_timestamp")),
         )
         .withColumn(
             "line_amount",
-            (
-                col("quantity") * col("unit_price")
-            ).cast(DecimalType(12, 2)),
+            (col("quantity") * col("unit_price")).cast(DecimalType(12, 2)),
         )
         .withColumn(
             "processing_timestamp",

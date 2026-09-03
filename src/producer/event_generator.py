@@ -54,7 +54,6 @@ def create_order_events() -> list[dict]:
     number_of_items = random.randint(1, 4)
 
     for _ in range(number_of_items):
-
         product_id = f"PROD-{random.randint(1, 500)}"
         quantity = random.randint(1, 5)
         unit_price = round(random.uniform(10, 500), 2)
@@ -77,7 +76,6 @@ def create_order_events() -> list[dict]:
         "order_shipped",
         "order_delivered",
     ]:
-
         events.append(
             create_base_event(
                 event_type,
@@ -99,22 +97,16 @@ def main() -> None:
     print(f"Sending events to topic: {TOPIC_NAME}")
 
     try:
-
         while True:
-
             events = create_order_events()
 
             for event in events:
-
                 producer.send(
                     TOPIC_NAME,
                     value=event,
                 )
 
-                print(
-                    f"Sent: {event['event_type']} "
-                    f"for {event['order_id']}"
-                )
+                print(f"Sent: {event['event_type']} for {event['order_id']}")
 
                 time.sleep(0.5)
 
@@ -127,11 +119,9 @@ def main() -> None:
             time.sleep(2)
 
     except KeyboardInterrupt:
-
         print("\nStopping producer...")
 
     finally:
-
         producer.flush()
         producer.close()
 

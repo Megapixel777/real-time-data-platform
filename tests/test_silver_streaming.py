@@ -36,18 +36,15 @@ def test_process_batch_with_valid_and_invalid_events(
     mock_get_invalid_events.assert_called_once_with(batch_df)
 
     # Comprobamos eliminación de duplicados
-    mock_invalid_df.dropDuplicates.assert_called_once_with(
-        ["event_id"]
-    )
+    mock_invalid_df.dropDuplicates.assert_called_once_with(["event_id"])
 
     # Comprobamos escritura en Quarantine
     mock_invalid_df.write.mode.assert_called_once_with("append")
 
     (
-        mock_invalid_df.write
-        .mode.return_value
-        .parquet
-        .assert_called_once_with(silver.QUARANTINE_PATH)
+        mock_invalid_df.write.mode.return_value.parquet.assert_called_once_with(
+            silver.QUARANTINE_PATH
+        )
     )
 
     # Comprobamos transformación Silver
@@ -57,10 +54,9 @@ def test_process_batch_with_valid_and_invalid_events(
     mock_silver_df.write.mode.assert_called_once_with("append")
 
     (
-        mock_silver_df.write
-        .mode.return_value
-        .parquet
-        .assert_called_once_with(silver.SILVER_PATH)
+        mock_silver_df.write.mode.return_value.parquet.assert_called_once_with(
+            silver.SILVER_PATH
+        )
     )
 
 
@@ -102,10 +98,9 @@ def test_process_batch_with_only_valid_events(
     mock_silver_df.write.mode.assert_called_once_with("append")
 
     (
-        mock_silver_df.write
-        .mode.return_value
-        .parquet
-        .assert_called_once_with(silver.SILVER_PATH)
+        mock_silver_df.write.mode.return_value.parquet.assert_called_once_with(
+            silver.SILVER_PATH
+        )
     )
 
 
@@ -137,10 +132,9 @@ def test_process_batch_with_only_invalid_events(
     mock_invalid_df.write.mode.assert_called_once_with("append")
 
     (
-        mock_invalid_df.write
-        .mode.return_value
-        .parquet
-        .assert_called_once_with(silver.QUARANTINE_PATH)
+        mock_invalid_df.write.mode.return_value.parquet.assert_called_once_with(
+            silver.QUARANTINE_PATH
+        )
     )
 
     # No debe transformar eventos para Silver
@@ -153,31 +147,21 @@ def test_silver_main(mock_spark_session):
     mock_spark = Mock()
 
     (
-        mock_spark_session.builder
-        .appName.return_value
-        .master.return_value
-        .config.return_value
-        .getOrCreate.return_value
+        mock_spark_session.builder.appName.return_value.master.return_value.config.return_value.getOrCreate.return_value
     ) = mock_spark
 
     # DataFrame leído desde Bronze
     mock_bronze_df = Mock()
 
     (
-        mock_spark.readStream
-        .format.return_value
-        .schema.return_value
-        .load.return_value
+        mock_spark.readStream.format.return_value.schema.return_value.load.return_value
     ) = mock_bronze_df
 
     # Streaming query
     mock_query = Mock()
 
     (
-        mock_bronze_df.writeStream
-        .foreachBatch.return_value
-        .option.return_value
-        .start.return_value
+        mock_bronze_df.writeStream.foreachBatch.return_value.option.return_value.start.return_value
     ) = mock_query
 
     # Ejecutamos el código real
@@ -187,23 +171,16 @@ def test_silver_main(mock_spark_session):
     # Verificamos SparkSession
     # ------------------------------------------
 
-    mock_spark_session.builder.appName.assert_called_once_with(
-        "silver-layer"
+    mock_spark_session.builder.appName.assert_called_once_with("silver-layer")
+
+    (
+        mock_spark_session.builder.appName.return_value.master.assert_called_once_with(
+            "local[*]"
+        )
     )
 
     (
-        mock_spark_session.builder
-        .appName.return_value
-        .master
-        .assert_called_once_with("local[*]")
-    )
-
-    (
-        mock_spark_session.builder
-        .appName.return_value
-        .master.return_value
-        .config
-        .assert_called_once_with(
+        mock_spark_session.builder.appName.return_value.master.return_value.config.assert_called_once_with(
             "spark.sql.shuffle.partitions",
             "4",
         )
@@ -213,23 +190,14 @@ def test_silver_main(mock_spark_session):
     # Verificamos lectura Bronze
     # ------------------------------------------
 
-    mock_spark.readStream.format.assert_called_once_with(
-        "parquet"
-    )
+    mock_spark.readStream.format.assert_called_once_with("parquet")
+
+    (mock_spark.readStream.format.return_value.schema.assert_called_once())
 
     (
-        mock_spark.readStream
-        .format.return_value
-        .schema
-        .assert_called_once()
-    )
-
-    (
-        mock_spark.readStream
-        .format.return_value
-        .schema.return_value
-        .load
-        .assert_called_once_with("data/bronze/events")
+        mock_spark.readStream.format.return_value.schema.return_value.load.assert_called_once_with(
+            "data/bronze/events"
+        )
     )
 
     # ------------------------------------------
@@ -241,21 +209,14 @@ def test_silver_main(mock_spark_session):
     )
 
     (
-        mock_bronze_df.writeStream
-        .foreachBatch.return_value
-        .option
-        .assert_called_once_with(
+        mock_bronze_df.writeStream.foreachBatch.return_value.option.assert_called_once_with(
             "checkpointLocation",
             "data/checkpoints/silver",
         )
     )
 
     (
-        mock_bronze_df.writeStream
-        .foreachBatch.return_value
-        .option.return_value
-        .start
-        .assert_called_once()
+        mock_bronze_df.writeStream.foreachBatch.return_value.option.return_value.start.assert_called_once()
     )
 
     # ------------------------------------------

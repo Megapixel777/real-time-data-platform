@@ -67,16 +67,13 @@ def test_create_order_events():
 
     # Debe haber entre 1 y 4 productos
     item_events = [
-        event
-        for event in events
-        if event["event_type"] == "order_item_added"
+        event for event in events if event["event_type"] == "order_item_added"
     ]
 
     assert 1 <= len(item_events) <= 4
 
     # Los productos deben tener información válida
     for event in item_events:
-
         assert event["product_id"] is not None
 
         assert event["quantity"] is not None
