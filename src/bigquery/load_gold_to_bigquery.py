@@ -1,6 +1,4 @@
-from google.cloud import bigquery
-from google.cloud import storage
-
+from google.cloud import bigquery, storage
 
 PROJECT_ID = "real-time-data-platform-507417"
 DATASET_ID = "ecommerce"

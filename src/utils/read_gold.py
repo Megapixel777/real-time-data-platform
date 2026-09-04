@@ -1,6 +1,5 @@
 from google.cloud import bigquery
 
-
 PROJECT_ID = "real-time-data-platform-507417"
 DATASET_ID = "ecommerce"
 TABLE_ID = "order_summary"

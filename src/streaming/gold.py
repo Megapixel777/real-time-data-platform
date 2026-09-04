@@ -8,7 +8,6 @@ from src.config.settings import (
 )
 from src.transformations.gold import transform_to_order_summary
 
-
 GCS_CONNECTOR_JAR = (
     r"C:\Users\thoma\Proyectos\real-time-data-platform"
     r"\jars\gcs-connector-3.1.18-shaded.jar"

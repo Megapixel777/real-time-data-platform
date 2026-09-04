@@ -1,6 +1,5 @@
 from pyspark.sql import SparkSession
 
-
 BRONZE_PATH = (
     "gs://real-time-data-platform-thomasede/bronze/events"
 )

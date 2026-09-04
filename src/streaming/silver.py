@@ -12,7 +12,6 @@ from src.transformations.data_quality import (
 )
 from src.transformations.silver import transform_silver
 
-
 KAFKA_PACKAGE = "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3"
 
 GCS_CONNECTOR_JAR = (

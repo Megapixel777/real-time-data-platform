@@ -1,10 +1,8 @@
 import os
 import sys
-import shutil
 from pathlib import Path
 
 from pyspark.sql import SparkSession
-
 
 # ============================================================
 # PROJECT PATHS
@@ -84,7 +82,6 @@ def get_spark_session(
     # --------------------------------------------------------
 
     if not GCS_CONNECTOR_JAR.exists():
-
         raise FileNotFoundError(
             f"""
 GCS Connector JAR not found.
@@ -96,7 +93,6 @@ Expected path:
         )
 
     if not GCS_SERVICE_ACCOUNT_FILE.exists():
-
         raise FileNotFoundError(
             f"""
 Google Service Account file not found.
@@ -248,18 +244,11 @@ def stop_spark_session(
     spark: SparkSession | None,
 ) -> None:
     """
-    Stop the Spark session safely.
+    Stop the Spark session.
     """
 
     if spark is not None:
-
-        try:
-
-            spark.stop()
-
-        except Exception:
-
-            pass
+        spark.stop()
 
 
 # ============================================================
@@ -446,5 +435,4 @@ def main() -> None:
 # ============================================================
 
 if __name__ == "__main__":
-
     main()
