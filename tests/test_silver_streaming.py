@@ -13,42 +13,42 @@ def test_process_batch_with_valid_and_invalid_events(
 ):
     batch_df = Mock()
 
-    # Hay eventos válidos
+    # There are valid events
     mock_valid_df = Mock()
     mock_valid_df.isEmpty.return_value = False
     mock_get_valid_events.return_value = mock_valid_df
 
-    # Hay eventos inválidos
+    # There are invalid events
     mock_invalid_df = Mock()
     mock_invalid_df.dropDuplicates.return_value = mock_invalid_df
     mock_invalid_df.isEmpty.return_value = False
     mock_get_invalid_events.return_value = mock_invalid_df
 
-    # DataFrame transformado para Silver
+    # Transformed DataFrame for Silver
     mock_silver_df = Mock()
     mock_transform_silver.return_value = mock_silver_df
 
-    # Ejecutamos
+    # Execute
     silver.process_batch(batch_df, 1)
 
-    # Comprobamos validación
+    # Verify validation
     mock_get_valid_events.assert_called_once_with(batch_df)
     mock_get_invalid_events.assert_called_once_with(batch_df)
 
-    # Comprobamos eliminación de duplicados
+    # Verify duplicate removal
     mock_invalid_df.dropDuplicates.assert_called_once_with(["event_id"])
 
-    # Comprobamos escritura en Quarantine
+    # Verify writing to Quarantine
     mock_invalid_df.write.mode.assert_called_once_with("append")
 
     mock_invalid_df.write.mode.return_value.parquet.assert_called_once_with(
         silver.QUARANTINE_PATH
     )
 
-    # Comprobamos transformación Silver
+    # Verify Silver transformation
     mock_transform_silver.assert_called_once_with(mock_valid_df)
 
-    # Comprobamos escritura en Silver
+    # Verify writing to Silver
     mock_silver_df.write.mode.assert_called_once_with("append")
 
     mock_silver_df.write.mode.return_value.parquet.assert_called_once_with(
@@ -66,31 +66,31 @@ def test_process_batch_with_only_valid_events(
 ):
     batch_df = Mock()
 
-    # Hay eventos válidos
+    # There are valid events
     mock_valid_df = Mock()
     mock_valid_df.isEmpty.return_value = False
     mock_get_valid_events.return_value = mock_valid_df
 
-    # No hay eventos inválidos
+    # There are no invalid events
     mock_invalid_df = Mock()
     mock_invalid_df.dropDuplicates.return_value = mock_invalid_df
     mock_invalid_df.isEmpty.return_value = True
     mock_get_invalid_events.return_value = mock_invalid_df
 
-    # Resultado de la transformación Silver
+    # Result of the Silver transformation
     mock_silver_df = Mock()
     mock_transform_silver.return_value = mock_silver_df
 
-    # Ejecutamos
+    # Execute
     silver.process_batch(batch_df, 2)
 
-    # No debe escribir en Quarantine
+    # Quarantine should not be written
     mock_invalid_df.write.mode.assert_not_called()
 
-    # Sí debe transformar los eventos válidos
+    # Valid events should be transformed
     mock_transform_silver.assert_called_once_with(mock_valid_df)
 
-    # Sí debe escribir en Silver
+    # Silver should be written
     mock_silver_df.write.mode.assert_called_once_with("append")
 
     mock_silver_df.write.mode.return_value.parquet.assert_called_once_with(
@@ -108,171 +108,95 @@ def test_process_batch_with_only_invalid_events(
 ):
     batch_df = Mock()
 
-    # No hay eventos válidos
+    # There are no valid events
     mock_valid_df = Mock()
     mock_valid_df.isEmpty.return_value = True
     mock_get_valid_events.return_value = mock_valid_df
 
-    # Hay eventos inválidos
+    # There are invalid events
     mock_invalid_df = Mock()
     mock_invalid_df.dropDuplicates.return_value = mock_invalid_df
     mock_invalid_df.isEmpty.return_value = False
     mock_get_invalid_events.return_value = mock_invalid_df
 
-    # Ejecutamos
+    # Execute
     silver.process_batch(batch_df, 3)
 
-    # Se escribe en Quarantine
+    # Invalid events should be written to Quarantine
     mock_invalid_df.write.mode.assert_called_once_with("append")
 
     mock_invalid_df.write.mode.return_value.parquet.assert_called_once_with(
         silver.QUARANTINE_PATH
     )
 
-    # No debe transformar eventos para Silver
+    # Valid events should not be transformed
     mock_transform_silver.assert_not_called()
 
 
-@patch("src.streaming.silver.SparkSession")
-def test_silver_main(mock_spark_session):
+@patch("src.streaming.silver.create_silver_spark_session")
+def test_silver_main(mock_create_silver_spark_session):
     # --------------------------------------------------
-    # Mock de SparkSession.builder
+    # Mock SparkSession
     # --------------------------------------------------
 
     mock_spark = Mock()
-    mock_builder = Mock()
-
-    mock_spark_session.builder = mock_builder
-
-    # Todos los métodos del builder devuelven el propio builder
-    mock_builder.appName.return_value = mock_builder
-    mock_builder.master.return_value = mock_builder
-    mock_builder.config.return_value = mock_builder
-
-    # getOrCreate devuelve nuestro Spark mock
-    mock_builder.getOrCreate.return_value = mock_spark
+    mock_create_silver_spark_session.return_value = mock_spark
 
     # --------------------------------------------------
-    # Mock de lectura desde Bronze
+    # Mock reading from Bronze
     # --------------------------------------------------
 
     mock_bronze_df = Mock()
 
     (
-        mock_spark.readStream.format.return_value.schema.return_value.load.return_value
+        mock_spark.readStream.format.return_value
+        .schema.return_value
+        .load.return_value
     ) = mock_bronze_df
 
     # --------------------------------------------------
-    # Mock de Streaming Query
+    # Mock Streaming Query
     # --------------------------------------------------
 
     mock_query = Mock()
 
     (
-        mock_bronze_df.writeStream.foreachBatch.return_value.option.return_value.start.return_value
+        mock_bronze_df.writeStream.foreachBatch.return_value
+        .option.return_value
+        .start.return_value
     ) = mock_query
 
     # --------------------------------------------------
-    # Ejecutamos el código real
+    # Execute the real main function
     # --------------------------------------------------
 
     silver.main()
 
     # ==================================================
-    # Verificamos SparkSession
+    # Verify Spark session creation
     # ==================================================
 
-    mock_builder.appName.assert_called_once_with("silver-layer")
-
-    mock_builder.master.assert_called_once_with("local[*]")
-
-    # Comprobamos las configuraciones importantes
-    mock_builder.config.assert_any_call(
-        "spark.jars.packages",
-        silver.KAFKA_PACKAGE,
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.jars",
-        silver.GCS_CONNECTOR_JAR,
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.hadoop.fs.gs.impl",
-        "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.hadoop.fs.AbstractFileSystem.gs.impl",
-        "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.hadoop.fs.gs.project.id",
-        silver.GCP_PROJECT_ID,
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.hadoop.fs.gs.auth.type",
-        "SERVICE_ACCOUNT_JSON_KEYFILE",
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.hadoop.fs.gs.auth.service.account.json.keyfile",
-        silver.GCP_CREDENTIALS,
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.hadoop.google.cloud.auth.type",
-        "SERVICE_ACCOUNT_JSON_KEYFILE",
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.hadoop.google.cloud.auth.service.account.json.keyfile",
-        silver.GCP_CREDENTIALS,
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.hadoop.fs.gs.block.size",
-        "67108864",
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.pyspark.python",
-        "python",
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.pyspark.driver.python",
-        "python",
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.sql.parquet.enableVectorizedReader",
-        "false",
-    )
-
-    mock_builder.config.assert_any_call(
-        "spark.sql.shuffle.partitions",
-        "4",
-    )
-
-    mock_builder.getOrCreate.assert_called_once()
+    mock_create_silver_spark_session.assert_called_once_with()
 
     # ==================================================
-    # Verificamos lectura Bronze
+    # Verify Bronze reading
     # ==================================================
 
     mock_spark.readStream.format.assert_called_once_with("parquet")
 
     mock_spark.readStream.format.return_value.schema.assert_called_once()
 
-    mock_spark.readStream.format.return_value.schema.return_value.load.assert_called_once_with(
+    (
+        mock_spark.readStream
+        .format.return_value
+        .schema.return_value
+        .load
+    ).assert_called_once_with(
         silver.BRONZE_PATH
     )
 
     # ==================================================
-    # Verificamos escritura streaming
+    # Verify streaming write
     # ==================================================
 
     mock_bronze_df.writeStream.foreachBatch.assert_called_once_with(
@@ -280,24 +204,29 @@ def test_silver_main(mock_spark_session):
     )
 
     (
-        mock_bronze_df.writeStream.foreachBatch.return_value.option.assert_called_once_with(
-            "checkpointLocation",
-            silver.SILVER_CHECKPOINT,
-        )
+        mock_bronze_df.writeStream
+        .foreachBatch.return_value
+        .option
+    ).assert_called_once_with(
+        "checkpointLocation",
+        silver.SILVER_CHECKPOINT,
     )
 
     (
-        mock_bronze_df.writeStream.foreachBatch.return_value.option.return_value.start.assert_called_once()
-    )
+        mock_bronze_df.writeStream
+        .foreachBatch.return_value
+        .option.return_value
+        .start
+    ).assert_called_once()
 
     # ==================================================
-    # Verificamos que el streaming queda activo
+    # Verify streaming remains active
     # ==================================================
 
     mock_query.awaitTermination.assert_called_once()
 
     # ==================================================
-    # Verificamos parada de Spark
+    # Verify Spark is stopped
     # ==================================================
 
     mock_spark.stop.assert_called_once()

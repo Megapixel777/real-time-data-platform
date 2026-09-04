@@ -19,6 +19,20 @@ from src.config.paths import (
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "local")
 
+GCP_PROJECT_ID = os.getenv(
+    "GCP_PROJECT_ID",
+    "real-time-data-platform-507417",
+)
+
+GCP_CREDENTIALS = os.getenv(
+    "GOOGLE_APPLICATION_CREDENTIALS",
+    os.path.join(
+        os.path.expanduser("~"),
+        ".gcp",
+        "real-time-data-platform-sa.json",
+    ),
+)
+
 if ENVIRONMENT == "gcp":
     BRONZE_PATH = GCS_BRONZE_PATH
     SILVER_PATH = GCS_SILVER_PATH

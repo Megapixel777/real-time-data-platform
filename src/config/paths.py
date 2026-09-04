@@ -1,4 +1,9 @@
-GCS_BUCKET = "real-time-data-platform-thomasede"
+import os
+
+GCS_BUCKET = os.getenv(
+    "GCS_BUCKET",
+    "real-time-data-platform-thomasede",
+)
 
 # Local data paths
 LOCAL_BRONZE_PATH = "data/bronze/events"

@@ -1,14 +1,20 @@
 from google.cloud import bigquery
 
-PROJECT_ID = "real-time-data-platform-507417"
-DATASET_ID = "ecommerce"
-TABLE_ID = "order_summary"
+from src.config.settings import (
+    BIGQUERY_DATASET,
+    BIGQUERY_ORDER_SUMMARY_TABLE,
+    GCP_PROJECT_ID,
+)
 
 
 def main() -> None:
-    client = bigquery.Client(project=PROJECT_ID)
+    client = bigquery.Client(project=GCP_PROJECT_ID)
 
-    table_ref = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
+    table_ref = (
+        f"{GCP_PROJECT_ID}."
+        f"{BIGQUERY_DATASET}."
+        f"{BIGQUERY_ORDER_SUMMARY_TABLE}"
+    )
 
     query = f"""
         SELECT

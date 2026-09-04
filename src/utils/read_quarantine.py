@@ -1,19 +1,19 @@
-from pyspark.sql import SparkSession
-
-QUARANTINE_PATH = "data/quarantine/events"
+from src.config.settings import QUARANTINE_PATH
+from src.config.spark import create_spark_session
 
 
 def main() -> None:
-
-    spark = (
-        SparkSession.builder.appName("read-quarantine").master("local[*]").getOrCreate()
+    spark = create_spark_session(
+        app_name="read-quarantine",
     )
 
-    df = spark.read.parquet(QUARANTINE_PATH)
+    try:
+        df = spark.read.parquet(QUARANTINE_PATH)
 
-    df.show(truncate=False)
+        df.show(truncate=False)
 
-    spark.stop()
+    finally:
+        spark.stop()
 
 
 if __name__ == "__main__":
