@@ -35,3 +35,7 @@ jobs:
       - name: Run Ruff
         run: |
           ruff check .
+
+      - name: Validate Docker Compose
+        run: |
+          docker compose config
