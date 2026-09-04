@@ -159,10 +159,7 @@ def test_silver_main(mock_spark_session):
     mock_bronze_df = Mock()
 
     (
-        mock_spark.readStream
-        .format.return_value
-        .schema.return_value
-        .load.return_value
+        mock_spark.readStream.format.return_value.schema.return_value.load.return_value
     ) = mock_bronze_df
 
     # --------------------------------------------------
@@ -172,10 +169,7 @@ def test_silver_main(mock_spark_session):
     mock_query = Mock()
 
     (
-        mock_bronze_df.writeStream
-        .foreachBatch.return_value
-        .option.return_value
-        .start.return_value
+        mock_bronze_df.writeStream.foreachBatch.return_value.option.return_value.start.return_value
     ) = mock_query
 
     # --------------------------------------------------
@@ -286,20 +280,14 @@ def test_silver_main(mock_spark_session):
     )
 
     (
-        mock_bronze_df.writeStream
-        .foreachBatch.return_value
-        .option
-        .assert_called_once_with(
+        mock_bronze_df.writeStream.foreachBatch.return_value.option.assert_called_once_with(
             "checkpointLocation",
             silver.SILVER_CHECKPOINT,
         )
     )
 
     (
-        mock_bronze_df.writeStream
-        .foreachBatch.return_value
-        .option.return_value
-        .start.assert_called_once()
+        mock_bronze_df.writeStream.foreachBatch.return_value.option.return_value.start.assert_called_once()
     )
 
     # ==================================================

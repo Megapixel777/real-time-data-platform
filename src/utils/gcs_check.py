@@ -12,10 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 JARS_DIR = PROJECT_ROOT / "jars"
 
-GCS_CONNECTOR_JAR = (
-    JARS_DIR
-    / "gcs-connector-3.1.18-shaded.jar"
-)
+GCS_CONNECTOR_JAR = JARS_DIR / "gcs-connector-3.1.18-shaded.jar"
 
 
 # ============================================================
@@ -26,11 +23,7 @@ GCP_PROJECT_ID = "real-time-data-platform-507417"
 
 GCS_BUCKET = "real-time-data-platform-thomasede"
 
-GCS_SERVICE_ACCOUNT_FILE = (
-    Path.home()
-    / ".gcp"
-    / "real-time-data-platform-sa.json"
-)
+GCS_SERVICE_ACCOUNT_FILE = Path.home() / ".gcp" / "real-time-data-platform-sa.json"
 
 
 # ============================================================
@@ -54,14 +47,13 @@ os.environ["PYSPARK_DRIVER_PYTHON"] = PYTHON_EXECUTABLE
 
 # Google credentials available to the local environment.
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(
-    GCS_SERVICE_ACCOUNT_FILE
-)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(GCS_SERVICE_ACCOUNT_FILE)
 
 
 # ============================================================
 # CREATE SPARK SESSION
 # ============================================================
+
 
 def get_spark_session(
     app_name: str = "real-time-data-platform",
@@ -108,126 +100,98 @@ Expected path:
     # --------------------------------------------------------
 
     spark = (
-        SparkSession.builder
-        .appName(app_name)
+        SparkSession.builder.appName(app_name)
         .master(master)
-
         # ====================================================
         # GCS CONNECTOR
         # ====================================================
-
         .config(
             "spark.jars",
             str(GCS_CONNECTOR_JAR),
         )
-
         # ====================================================
         # GOOGLE CLOUD STORAGE FILESYSTEM
         # ====================================================
-
         .config(
             "spark.hadoop.fs.gs.impl",
             "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
         )
-
         .config(
             "spark.hadoop.fs.AbstractFileSystem.gs.impl",
             "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
         )
-
         # ====================================================
         # GOOGLE CLOUD PROJECT
         # ====================================================
-
         .config(
             "spark.hadoop.fs.gs.project.id",
             GCP_PROJECT_ID,
         )
-
         # ====================================================
         # SERVICE ACCOUNT AUTHENTICATION
         # ====================================================
-
         .config(
             "spark.hadoop.google.cloud.auth.type",
             "SERVICE_ACCOUNT_JSON_KEYFILE",
         )
-
         .config(
             "spark.hadoop.google.cloud.auth.service.account.json.keyfile",
             str(GCS_SERVICE_ACCOUNT_FILE),
         )
-
         .config(
             "spark.hadoop.fs.gs.auth.type",
             "SERVICE_ACCOUNT_JSON_KEYFILE",
         )
-
         .config(
             "spark.hadoop.fs.gs.auth.service.account.json.keyfile",
             str(GCS_SERVICE_ACCOUNT_FILE),
         )
-
         # ====================================================
         # GCS PERFORMANCE
         # ====================================================
-
         .config(
             "spark.hadoop.fs.gs.block.size",
             "67108864",
         )
-
         # ====================================================
         # DISABLE GCS VECTORED READS
         # ====================================================
-
         # Avoid compatibility problems between the GCS
         # connector and Hadoop/Spark versions.
-
         .config(
             "spark.hadoop.fs.gs.inputstream.support.enable",
             "false",
         )
-
         # ====================================================
         # PYTHON CONFIGURATION
         # ====================================================
-
         .config(
             "spark.pyspark.python",
             PYTHON_EXECUTABLE,
         )
-
         .config(
             "spark.executorEnv.PYSPARK_PYTHON",
             PYTHON_EXECUTABLE,
         )
-
         # ====================================================
         # PARQUET COMPATIBILITY
         # ====================================================
-
         # Disable Spark vectorized Parquet reader.
-
         .config(
             "spark.sql.parquet.enableVectorizedReader",
             "false",
         )
-
         # ====================================================
         # GENERAL SPARK CONFIGURATION
         # ====================================================
-
         .config(
             "spark.sql.shuffle.partitions",
             "4",
         )
-
         .config(
             "spark.sql.adaptive.enabled",
             "true",
         )
-
         .getOrCreate()
     )
 
@@ -239,6 +203,7 @@ Expected path:
 # ============================================================
 # STOP SPARK SESSION
 # ============================================================
+
 
 def stop_spark_session(
     spark: SparkSession | None,
@@ -255,6 +220,7 @@ def stop_spark_session(
 # TEST GCS
 # ============================================================
 
+
 def test_gcs(
     spark: SparkSession,
 ) -> None:
@@ -263,9 +229,7 @@ def test_gcs(
     to/from Google Cloud Storage.
     """
 
-    test_path = (
-        f"gs://{GCS_BUCKET}/test/spark"
-    )
+    test_path = f"gs://{GCS_BUCKET}/test/spark"
 
     print()
 
@@ -294,11 +258,7 @@ def test_gcs(
 
     print()
 
-    (
-        df.write
-        .mode("overwrite")
-        .parquet(test_path)
-    )
+    (df.write.mode("overwrite").parquet(test_path))
 
     print("SUCCESS: DataFrame written to GCS")
 
@@ -306,10 +266,7 @@ def test_gcs(
 
     print("Reading DataFrame from GCS...")
 
-    result_df = (
-        spark.read
-        .parquet(test_path)
-    )
+    result_df = spark.read.parquet(test_path)
 
     print()
 
@@ -325,6 +282,7 @@ def test_gcs(
 # ============================================================
 # MAIN
 # ============================================================
+
 
 def main() -> None:
 
@@ -375,16 +333,13 @@ def main() -> None:
     spark = None
 
     try:
-
         print("Creating Spark session...")
 
         spark = get_spark_session()
 
         print()
 
-        print(
-            "Spark session created successfully."
-        )
+        print("Spark session created successfully.")
 
         print()
 
@@ -418,9 +373,7 @@ def main() -> None:
         test_gcs(spark)
 
     finally:
-
         if spark is not None:
-
             print()
 
             print("Stopping Spark...")

@@ -19,9 +19,7 @@ def test_process_batch_with_empty_order_summary(
     mock_order_summary_with_batch = Mock()
     mock_order_summary_with_batch.isEmpty.return_value = True
 
-    mock_order_summary_df.withColumn.return_value = (
-        mock_order_summary_with_batch
-    )
+    mock_order_summary_df.withColumn.return_value = mock_order_summary_with_batch
 
     gold.process_batch(batch_df, 1)
 
@@ -54,9 +52,7 @@ def test_process_batch_writes_gold(
     mock_order_summary_with_batch = Mock()
     mock_order_summary_with_batch.isEmpty.return_value = False
 
-    mock_order_summary_df.withColumn.return_value = (
-        mock_order_summary_with_batch
-    )
+    mock_order_summary_df.withColumn.return_value = mock_order_summary_with_batch
 
     gold.process_batch(batch_df, 2)
 
@@ -70,14 +66,12 @@ def test_process_batch_writes_gold(
     mock_order_summary_with_batch.isEmpty.assert_called_once()
 
     # Comprobamos escritura en Gold
-    mock_order_summary_with_batch.write.mode.assert_called_once_with(
-        "append"
-    )
+    mock_order_summary_with_batch.write.mode.assert_called_once_with("append")
 
     (
-        mock_order_summary_with_batch
-        .write.mode.return_value.parquet
-        .assert_called_once_with(gold.GOLD_PATH)
+        mock_order_summary_with_batch.write.mode.return_value.parquet.assert_called_once_with(
+            gold.GOLD_PATH
+        )
     )
 
 
@@ -98,18 +92,14 @@ def test_gold_main(mock_spark_session):
     mock_silver_df = Mock()
 
     (
-        mock_spark.readStream.format.return_value
-        .schema.return_value
-        .load.return_value
+        mock_spark.readStream.format.return_value.schema.return_value.load.return_value
     ) = mock_silver_df
 
     # Streaming query
     mock_query = Mock()
 
     (
-        mock_silver_df.writeStream.foreachBatch.return_value
-        .option.return_value
-        .start.return_value
+        mock_silver_df.writeStream.foreachBatch.return_value.option.return_value.start.return_value
     ) = mock_query
 
     gold.main()
@@ -135,39 +125,29 @@ def test_gold_main(mock_spark_session):
 
     mock_spark.readStream.format.assert_called_once_with("parquet")
 
-    (
-        mock_spark.readStream.format.return_value
-        .schema.assert_called_once()
-    )
+    (mock_spark.readStream.format.return_value.schema.assert_called_once())
 
     (
-        mock_spark.readStream.format.return_value
-        .schema.return_value
-        .load.assert_called_once_with(gold.SILVER_PATH)
+        mock_spark.readStream.format.return_value.schema.return_value.load.assert_called_once_with(
+            gold.SILVER_PATH
+        )
     )
 
     # ------------------------------------------
     # Verificamos escritura streaming
     # ------------------------------------------
 
-    mock_silver_df.writeStream.foreachBatch.assert_called_once_with(
-        gold.process_batch
-    )
+    mock_silver_df.writeStream.foreachBatch.assert_called_once_with(gold.process_batch)
 
     (
-        mock_silver_df.writeStream
-        .foreachBatch.return_value
-        .option.assert_called_once_with(
+        mock_silver_df.writeStream.foreachBatch.return_value.option.assert_called_once_with(
             "checkpointLocation",
             gold.GOLD_CHECKPOINT,
         )
     )
 
     (
-        mock_silver_df.writeStream
-        .foreachBatch.return_value
-        .option.return_value
-        .start.assert_called_once()
+        mock_silver_df.writeStream.foreachBatch.return_value.option.return_value.start.assert_called_once()
     )
 
     # ------------------------------------------

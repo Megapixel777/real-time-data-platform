@@ -15,17 +15,14 @@ GCS_CONNECTOR_JAR = (
 
 GCP_PROJECT_ID = "real-time-data-platform-507417"
 
-GCP_CREDENTIALS = (
-    r"C:\Users\thoma\.gcp\real-time-data-platform-sa.json"
-)
+GCP_CREDENTIALS = r"C:\Users\thoma\.gcp\real-time-data-platform-sa.json"
 
 
 def create_spark_session() -> SparkSession:
     """Create Spark session configured for GCS."""
 
     return (
-        SparkSession.builder
-        .appName("gold-layer")
+        SparkSession.builder.appName("gold-layer")
         .master("local[*]")
         .config(
             "spark.jars",
@@ -86,28 +83,17 @@ def create_spark_session() -> SparkSession:
 def process_batch(batch_df, batch_id) -> None:
     """Process one Silver micro-batch."""
 
-    order_summary_df = (
-        transform_to_order_summary(batch_df)
-        .withColumn("batch_id", lit(batch_id))
+    order_summary_df = transform_to_order_summary(batch_df).withColumn(
+        "batch_id", lit(batch_id)
     )
 
     if order_summary_df.isEmpty():
-        print(
-            f"Gold batch {batch_id}: no order items"
-        )
+        print(f"Gold batch {batch_id}: no order items")
         return
 
-    (
-        order_summary_df
-        .write
-        .mode("append")
-        .parquet(GOLD_PATH)
-    )
+    (order_summary_df.write.mode("append").parquet(GOLD_PATH))
 
-    print(
-        f"Gold batch {batch_id}: "
-        "order summary written to Gold"
-    )
+    print(f"Gold batch {batch_id}: order summary written to Gold")
 
 
 def main() -> None:
@@ -122,8 +108,7 @@ def main() -> None:
         print(f"GOLD_CHECKPOINT: {GOLD_CHECKPOINT}")
 
         silver_df = (
-            spark.readStream
-            .format("parquet")
+            spark.readStream.format("parquet")
             .schema(
                 """
                 event_id STRING,
@@ -142,9 +127,7 @@ def main() -> None:
         )
 
         query = (
-            silver_df
-            .writeStream
-            .foreachBatch(process_batch)
+            silver_df.writeStream.foreachBatch(process_batch)
             .option(
                 "checkpointLocation",
                 GOLD_CHECKPOINT,

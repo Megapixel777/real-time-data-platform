@@ -1,8 +1,8 @@
 # Real-Time Data Platform
 
-End-to-end real-time data engineering platform built with Python, Apache Kafka, PySpark Structured Streaming, and Delta Lake.
+End-to-end real-time data engineering platform built with Python, Apache Kafka, PySpark Structured Streaming, Google Cloud Storage, BigQuery, Terraform, Docker, and GitHub Actions.
 
-The project simulates an e-commerce platform that generates events in real time, processes them through a Medallion Architecture, validates data quality, sends invalid records to a Quarantine Layer, and produces order-level aggregations.
+The project simulates an e-commerce platform that generates events in real time, processes them through a Medallion Architecture, validates data quality, sends invalid records to a Quarantine Layer, creates order-level aggregations, and incrementally loads the Gold data into BigQuery.
 
 ## Architecture
 
@@ -29,16 +29,27 @@ Cleaned and enriched events
        ▼
 Gold Layer
 Order-level aggregations
-stored in Delta Lake
+stored as Parquet
+       │
+       ▼
+BigQuery
+Incremental load
+       │
+       ▼
+Analytics
 ```
+
+The platform supports both local execution and Google Cloud Storage as the storage backend.
 
 ## Technologies
 
-- Python
+- Python 3.11
 - Apache Kafka
 - Docker
 - PySpark Structured Streaming
-- Delta Lake
+- Google Cloud Storage
+- BigQuery
+- Terraform
 - Parquet
 - Pytest
 - Coverage
@@ -53,7 +64,17 @@ real-time-data-platform/
 ├── docker/
 │   └── docker-compose.yml
 │
+├── jars/
+│   └── gcs-connector-*.jar
+│
 ├── src/
+│   ├── bigquery/
+│   │   └── load_gold_to_bigquery.py
+│   │
+│   ├── config/
+│   │   ├── paths.py
+│   │   └── settings.py
+│   │
 │   ├── producer/
 │   │   ├── event_generator.py
 │   │   └── send_invalid_event.py
@@ -72,22 +93,34 @@ real-time-data-platform/
 │   │   └── gold.py
 │   │
 │   └── utils/
+│       ├── gcs_check.py
 │       ├── read_bronze.py
 │       ├── read_silver.py
+│       ├── read_quarantine.py
 │       └── read_gold.py
+│
+├── terraform/
+│   ├── bigquery.tf
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   ├── variables.tf
+│   └── .terraform.lock.hcl
 │
 ├── tests/
 │   ├── test_event_generator.py
+│   ├── test_event_schema.py
 │   ├── test_data_quality.py
 │   ├── test_silver.py
 │   ├── test_gold.py
 │   ├── test_bronze.py
 │   ├── test_silver_streaming.py
-│   └── test_gold_streaming.py
+│   ├── test_gold_streaming.py
+│   └── test_send_invalid_event.py
 │
 ├── .github/
 │   └── workflows/
-│       └── ci.yml
+│       └── tests.yml
 │
 ├── requirements.txt
 ├── .gitignore
@@ -98,15 +131,15 @@ real-time-data-platform/
 
 ### 1. Event Generator
 
-A Python producer generates simulated e-commerce events.
+A Python Kafka producer generates simulated e-commerce events.
 
 The following event types are generated:
 
-- order_created
-- order_item_added
-- payment_completed
-- order_shipped
-- order_delivered
+- `order_created`
+- `order_item_added`
+- `payment_completed`
+- `order_shipped`
+- `order_delivered`
 
 Events are published to the Kafka topic:
 
@@ -126,7 +159,7 @@ The project also includes a producer for testing invalid events:
 python -m src.producer.send_invalid_event
 ```
 
-### 2. Bronze Layer
+## 2. Bronze Layer
 
 The Bronze streaming job consumes events from Kafka.
 
@@ -140,17 +173,19 @@ PySpark Structured Streaming
 Bronze Parquet
 ```
 
-Output:
+Local output:
 
 ```text
 data/bronze/events
 ```
 
-Checkpoint:
+Local checkpoint:
 
 ```text
 data/checkpoints/bronze
 ```
+
+When running with the GCP environment, the Bronze data and checkpoint are stored in Google Cloud Storage.
 
 Run the Bronze streaming job:
 
@@ -158,31 +193,46 @@ Run the Bronze streaming job:
 python -m src.streaming.bronze
 ```
 
-### 3. Silver Layer
+## 3. Silver Layer
 
 The Silver streaming job reads events from the Bronze Layer.
 
-Each micro-batch is processed using foreachBatch.
+Each micro-batch is processed using `foreachBatch`.
 
 The pipeline separates valid and invalid records.
 
-#### Data Quality Validation
+### Data Quality Validation
 
-Valid events must meet the required data quality rules.
+Events are validated using data quality rules including:
+
+- Required `event_id`
+- Valid `event_type`
+- Required `order_id`
+- Required `customer_id`
+- Required `event_timestamp`
+- Required product information for `order_item_added`
+- Positive quantity
+- Positive unit price
 
 Invalid events are separated from valid events.
 
 Duplicate invalid events are removed using:
 
-- event_id
+```text
+event_id
+```
 
-#### Quarantine Layer
+### Quarantine Layer
 
 Invalid events are stored separately in the Quarantine Layer.
+
+Local output:
 
 ```text
 data/quarantine/events
 ```
+
+When running with GCP, the Quarantine Layer is stored in Google Cloud Storage.
 
 This prevents invalid records from entering the Silver and Gold layers while preserving them for investigation and debugging.
 
@@ -206,22 +256,22 @@ Bronze Batch
       Quarantine Layer
 ```
 
-#### Silver Transformations
+### Silver Transformations
 
 Valid events are transformed by:
 
-- Removing duplicate events using event_id
-- Converting event_timestamp to TIMESTAMP
-- Calculating line_amount
-- Adding processing_timestamp
+- Removing duplicate events using `event_id`
+- Converting `event_timestamp` to `TIMESTAMP`
+- Calculating `line_amount`
+- Adding `processing_timestamp`
 
-Output:
+Local output:
 
 ```text
 data/silver/events
 ```
 
-Checkpoint:
+Local checkpoint:
 
 ```text
 data/checkpoints/silver
@@ -233,39 +283,17 @@ Run the Silver streaming job:
 python -m src.streaming.silver
 ```
 
-### 4. Gold Layer
+## 4. Gold Layer
 
 The Gold streaming job reads events from the Silver Layer.
 
-The pipeline aggregates order_item_added events at order level.
+The pipeline aggregates `order_item_added` events at order level.
 
 For each order it calculates:
 
-- customer_id
-- total_items
-- total_amount
-
-Output:
-
-```text
-data/gold/order_summary
-```
-
-The Gold Layer uses:
-
-- foreachBatch
-- Delta Lake
-- Delta MERGE
-
-#### Delta Table Creation
-
-During the first batch, the pipeline checks whether the Delta table already exists.
-
-If it does not exist, it creates the table.
-
-#### Incremental Updates
-
-If the Delta table already exists, new batches are merged using Delta MERGE.
+- `customer_id`
+- `total_items`
+- `total_amount`
 
 ```text
 Silver Events
@@ -277,23 +305,22 @@ Order Aggregation
 foreachBatch
       │
       ▼
-Delta Table Exists?
-      │
- ┌────┴─────┐
- │          │
-No         Yes
- │          │
- ▼          ▼
-CREATE     MERGE
-DELTA      DELTA
-TABLE      TABLE
+Gold Parquet
 ```
 
-Checkpoint:
+Local output:
+
+```text
+data/gold/order_summary
+```
+
+Local checkpoint:
 
 ```text
 data/checkpoints/gold_order_summary
 ```
+
+When running with GCP, Gold data is stored in Google Cloud Storage.
 
 Run the Gold streaming job:
 
@@ -301,13 +328,89 @@ Run the Gold streaming job:
 python -m src.streaming.gold
 ```
 
+The Gold layer uses Parquet as its storage format.
+
+## 5. BigQuery
+
+The Gold Parquet data can be incrementally loaded into BigQuery.
+
+The loader:
+
+1. Discovers finalized Gold Parquet files in Google Cloud Storage.
+2. Loads them into a BigQuery staging table.
+3. Identifies batches that have not previously been processed.
+4. Merges each new batch into the target `order_summary` table.
+5. Registers the processed batch.
+6. Prevents the same batch from being processed again.
+
+BigQuery tables:
+
+```text
+ecommerce.order_summary
+ecommerce.order_summary_staging
+ecommerce.order_summary_processed_batches
+```
+
+Run the incremental loader:
+
+```bash
+python -m src.bigquery.load_gold_to_bigquery
+```
+
+The loader is designed to be idempotent. Running it again after all batches have been processed results in:
+
+```text
+No new batches to process.
+```
+
+## Google Cloud Storage
+
+The project supports Google Cloud Storage as the storage backend.
+
+The storage paths are:
+
+```text
+gs://real-time-data-platform-thomasede/bronze/events
+gs://real-time-data-platform-thomasede/silver/events
+gs://real-time-data-platform-thomasede/quarantine/events
+gs://real-time-data-platform-thomasede/gold/order_summary
+```
+
+Checkpoints are stored in:
+
+```text
+gs://real-time-data-platform-thomasede/checkpoints/bronze
+gs://real-time-data-platform-thomasede/checkpoints/silver
+gs://real-time-data-platform-thomasede/checkpoints/gold_order_summary
+```
+
+The environment is selected using:
+
+```bash
+ENVIRONMENT=gcp
+```
+
+For example:
+
+```bash
+ENVIRONMENT=gcp python -m src.streaming.bronze
+```
+
+The default environment is local:
+
+```text
+ENVIRONMENT=local
+```
+
 ## Running the Project
 
 ### 1. Create the Python environment
 
+The project is developed and tested with Python 3.11.
+
 ```bash
-conda create -n real-time-data-platform python=3.12
-conda activate real-time-data-platform
+conda create -n real-time-data-platform-py311 python=3.11
+conda activate real-time-data-platform-py311
 ```
 
 Install dependencies:
@@ -318,6 +421,8 @@ pip install -r requirements.txt
 
 ### 2. Start Kafka
 
+Kafka runs locally using Docker Compose.
+
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
@@ -326,6 +431,21 @@ Verify that Kafka is running:
 
 ```bash
 docker ps
+```
+
+Verify the Kafka topic:
+
+```bash
+MSYS_NO_PATHCONV=1 docker exec kafka \
+  /opt/kafka/bin/kafka-topics.sh \
+  --bootstrap-server localhost:9092 \
+  --list
+```
+
+The expected topic is:
+
+```text
+ecommerce-events
 ```
 
 ### 3. Start Bronze
@@ -373,6 +493,8 @@ Silver
        ├──────► Quarantine
        ↓
 Gold
+       ↓
+BigQuery
 ```
 
 ## Reading the Data
@@ -389,22 +511,16 @@ python -m src.utils.read_bronze
 python -m src.utils.read_silver
 ```
 
+### Quarantine
+
+```bash
+python -m src.utils.read_quarantine
+```
+
 ### Gold
 
 ```bash
 python -m src.utils.read_gold
-```
-
-Example Gold output:
-
-```text
-+--------+-----------+-----------+------------+
-|order_id|customer_id|total_items|total_amount|
-+--------+-----------+-----------+------------+
-|ORD-1732|CUST-628   |1          |380.17      |
-|ORD-2125|CUST-988   |2          |971.54      |
-|ORD-3800|CUST-908   |7          |2050.41     |
-+--------+-----------+-----------+------------+
 ```
 
 ## Testing
@@ -412,10 +528,16 @@ Example Gold output:
 Run the complete test suite:
 
 ```bash
-pytest -v
+pytest -q
 ```
 
-The project includes unit tests for:
+The project currently contains:
+
+```text
+18 tests
+```
+
+The tests cover:
 
 - Event generation
 - Event schema
@@ -424,35 +546,29 @@ The project includes unit tests for:
 - Gold transformations
 - Invalid event producer
 - Bronze streaming configuration
+- Silver streaming configuration
 - Silver micro-batch processing
-- Quarantine Layer
-- Gold Delta table creation
-- Gold Delta MERGE
+- Quarantine processing
 - Gold streaming configuration
+- Gold micro-batch processing
 
-### Code Coverage
+The streaming components are tested using mocks to validate:
+
+- Spark configuration
+- Structured Streaming configuration
+- `foreachBatch`
+- Checkpoints
+- Parquet reads and writes
+- Data transformations
+- Micro-batch processing
+
+## Code Coverage
 
 Run the test suite with coverage:
 
 ```bash
 pytest --cov=src --cov-report=term-missing
 ```
-
-Current test coverage:
-
-```text
-94%
-```
-
-The streaming components are tested using mocks to validate:
-
-- Spark configuration
-- Structured Streaming configuration
-- foreachBatch
-- Checkpoints
-- Parquet reads
-- Delta table creation
-- Delta MERGE
 
 ## Code Quality
 
@@ -470,25 +586,115 @@ Automatically fix supported issues:
 ruff check . --fix
 ```
 
+Check formatting:
+
+```bash
+ruff format --check .
+```
+
+Format the project:
+
+```bash
+ruff format .
+```
+
 ## Continuous Integration
 
-GitHub Actions runs automatically on repository changes.
+GitHub Actions runs automatically on:
 
-The CI pipeline performs the following steps:
+- Pushes to `main`
+- Pull requests targeting `main`
+
+The workflow is located at:
+
+```text
+.github/workflows/tests.yml
+```
+
+The CI pipeline performs:
 
 ```text
 Checkout repository
         ↓
-Set up Python
+Set up Python 3.11
         ↓
 Install dependencies
         ↓
-Run Pytest
-        ↓
 Run Ruff
+        ↓
+Validate Docker Compose
+        ↓
+Run Pytest
 ```
 
-This ensures that tests must pass before code quality checks are executed.
+Docker Compose is validated using:
+
+```bash
+docker compose -f docker/docker-compose.yml config
+```
+
+This ensures that the Python code, tests, linting, and Docker configuration are validated automatically.
+
+## Infrastructure as Code
+
+Google Cloud infrastructure is managed using Terraform.
+
+Terraform provisions:
+
+- Google Cloud Storage bucket
+- BigQuery dataset
+- BigQuery `order_summary` table
+- BigQuery staging table
+- BigQuery processed-batches table
+
+Terraform configuration is located in:
+
+```text
+terraform/
+```
+
+Initialize Terraform:
+
+```bash
+cd terraform
+terraform init
+```
+
+Validate the configuration:
+
+```bash
+terraform validate
+```
+
+Review infrastructure changes:
+
+```bash
+terraform plan
+```
+
+Apply infrastructure:
+
+```bash
+terraform apply
+```
+
+## GCS Connectivity Check
+
+The project includes a manual utility to validate Spark connectivity with Google Cloud Storage:
+
+```bash
+python -m src.utils.gcs_check
+```
+
+The utility tests:
+
+- Spark session creation
+- GCS connector configuration
+- Google Cloud authentication
+- Writing Parquet to GCS
+- Reading Parquet from GCS
+
+This utility is intended as a manual integration check and is not part of the automated unit test suite.
 
 ## Key Concepts Demonstrated
 
@@ -503,84 +709,87 @@ This project demonstrates:
 - Data quality validation
 - Quarantine Layer
 - Parquet
-- Delta Lake
-- Delta MERGE
-- foreachBatch
+- Google Cloud Storage
+- BigQuery
+- Incremental processing
+- Idempotent batch processing
+- `foreachBatch`
 - Micro-batch processing
 - Checkpointing
-- Incremental processing
+- Spark transformations
 - Unit testing
-- Mocking Spark and Delta components
+- Mocking Spark components
 - Code coverage
 - Ruff
 - CI/CD with GitHub Actions
+- Infrastructure as Code with Terraform
 
 ## Future Improvements
 
 Possible future improvements include:
 
-- Schema validation
 - More advanced data quality rules
 - Data quality metrics
 - Monitoring and alerting
 - Kafka multi-broker setup
 - Kafka Schema Registry
 - Airflow orchestration
-- Cloud deployment
-- Google Cloud Storage
-- Dataproc
-- BigQuery
-- Terraform infrastructure provisioning
+- Dataproc deployment
+- Production Spark deployment
+- BigQuery optimization
 - Production monitoring
 - Centralized logging
+- Secret management
+- Automated cloud deployment
 - GitHub Actions deployment pipeline
 
-## Future Cloud Architecture
+## Cloud Architecture
 
-The next phase of the project will move the local platform to Google Cloud.
+The current cloud architecture uses Google Cloud Storage and BigQuery:
 
 ```text
 Kafka / Event Source
         ↓
+PySpark Structured Streaming
+        ↓
 Google Cloud Storage
-        ↓
-Dataproc + PySpark
-        ↓
-BigQuery
-        ↓
-Analytics
+        │
+        ├── Bronze
+        ├── Silver
+        ├── Quarantine
+        └── Gold
+               ↓
+           BigQuery
+               ↓
+           Analytics
 ```
 
-Infrastructure will be provisioned using Terraform.
+Terraform manages the cloud infrastructure.
 
-Future CI/CD will automate:
-
-```text
-Code
- ↓
-Tests
- ↓
-Linting
- ↓
-Build
- ↓
-Cloud Deployment
-```
+The project can be evolved towards a fully managed cloud architecture using services such as Dataproc for Spark execution.
 
 ## Project Status
 
-The local version of the real-time data platform is complete.
+The core real-time data platform is implemented and tested.
 
 Current implementation includes:
 
 - Real-time Kafka ingestion
-- Bronze, Silver, and Gold layers
+- Dockerized Kafka
+- Bronze Layer
+- Silver Layer
+- Gold Layer
 - Data Quality validation
 - Quarantine Layer
-- Delta Lake incremental processing
+- Parquet-based storage
+- Google Cloud Storage integration
+- BigQuery incremental loading
+- Idempotent batch processing
+- Terraform infrastructure
 - Automated tests
-- 94% test coverage
+- 18 passing tests
 - Ruff code quality checks
 - GitHub Actions CI
+- Docker Compose validation
 
-The next stage is cloud deployment on Google Cloud Platform.
+The next stage is to further develop the cloud deployment architecture and production-oriented operational capabilities.

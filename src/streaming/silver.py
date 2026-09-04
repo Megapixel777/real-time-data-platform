@@ -21,15 +21,12 @@ GCS_CONNECTOR_JAR = (
 
 GCP_PROJECT_ID = "real-time-data-platform-507417"
 
-GCP_CREDENTIALS = (
-    r"C:\Users\thoma\.gcp\real-time-data-platform-sa.json"
-)
+GCP_CREDENTIALS = r"C:\Users\thoma\.gcp\real-time-data-platform-sa.json"
 
 
 def create_spark_session() -> SparkSession:
     return (
-        SparkSession.builder
-        .appName("silver-layer")
+        SparkSession.builder.appName("silver-layer")
         .master("local[*]")
         .config("spark.jars.packages", KAFKA_PACKAGE)
         .config("spark.jars", GCS_CONNECTOR_JAR)
@@ -88,32 +85,19 @@ def create_spark_session() -> SparkSession:
 def process_batch(batch_df, batch_id) -> None:
     valid_df = get_valid_events(batch_df)
 
-    invalid_df = (
-        get_invalid_events(batch_df)
-        .dropDuplicates(["event_id"])
-    )
+    invalid_df = get_invalid_events(batch_df).dropDuplicates(["event_id"])
 
     if not invalid_df.isEmpty():
-        invalid_df.write.mode("append").parquet(
-            QUARANTINE_PATH
-        )
+        invalid_df.write.mode("append").parquet(QUARANTINE_PATH)
 
-        print(
-            f"Silver batch {batch_id}: "
-            "invalid events sent to Quarantine"
-        )
+        print(f"Silver batch {batch_id}: invalid events sent to Quarantine")
 
     if not valid_df.isEmpty():
         silver_df = transform_silver(valid_df)
 
-        silver_df.write.mode("append").parquet(
-            SILVER_PATH
-        )
+        silver_df.write.mode("append").parquet(SILVER_PATH)
 
-        print(
-            f"Silver batch {batch_id}: "
-            "valid events written to Silver"
-        )
+        print(f"Silver batch {batch_id}: valid events written to Silver")
 
 
 def main() -> None:
@@ -127,8 +111,7 @@ def main() -> None:
         print(f"SILVER_CHECKPOINT: {SILVER_CHECKPOINT}")
 
         bronze_df = (
-            spark.readStream
-            .format("parquet")
+            spark.readStream.format("parquet")
             .schema(
                 """
                 event_id STRING,
@@ -145,8 +128,7 @@ def main() -> None:
         )
 
         query = (
-            bronze_df.writeStream
-            .foreachBatch(process_batch)
+            bronze_df.writeStream.foreachBatch(process_batch)
             .option(
                 "checkpointLocation",
                 SILVER_CHECKPOINT,

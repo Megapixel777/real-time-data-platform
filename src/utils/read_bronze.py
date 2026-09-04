@@ -1,8 +1,6 @@
 from pyspark.sql import SparkSession
 
-BRONZE_PATH = (
-    "gs://real-time-data-platform-thomasede/bronze/events"
-)
+BRONZE_PATH = "gs://real-time-data-platform-thomasede/bronze/events"
 
 GCS_CONNECTOR_JAR = (
     r"C:\Users\thoma\Proyectos\real-time-data-platform"
@@ -11,16 +9,13 @@ GCS_CONNECTOR_JAR = (
 
 GCP_PROJECT_ID = "real-time-data-platform-507417"
 
-GCP_CREDENTIALS = (
-    r"C:\Users\thoma\.gcp\real-time-data-platform-sa.json"
-)
+GCP_CREDENTIALS = r"C:\Users\thoma\.gcp\real-time-data-platform-sa.json"
 
 
 def main() -> None:
 
     spark = (
-        SparkSession.builder
-        .appName("read-bronze")
+        SparkSession.builder.appName("read-bronze")
         .master("local[*]")
         .config("spark.jars", GCS_CONNECTOR_JAR)
         .config(
@@ -55,7 +50,6 @@ def main() -> None:
     )
 
     try:
-
         df = spark.read.parquet(BRONZE_PATH)
 
         print("=" * 70)

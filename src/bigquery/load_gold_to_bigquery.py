@@ -34,9 +34,7 @@ def get_gold_files() -> list[str]:
             and "/_temporary/" not in name
             and not name.startswith(f"{GOLD_PREFIX}_")
         ):
-            files.append(
-                f"gs://{BUCKET_NAME}/{name}"
-            )
+            files.append(f"gs://{BUCKET_NAME}/{name}")
 
     files.sort()
 
@@ -77,9 +75,7 @@ def load_staging_table(
         print("No finalized Gold Parquet files found.")
         return
 
-    print(
-        f"Loading {len(gold_files)} finalized Gold files..."
-    )
+    print(f"Loading {len(gold_files)} finalized Gold files...")
 
     job_config = bigquery.LoadJobConfig(
         source_format=bigquery.SourceFormat.PARQUET,
@@ -94,9 +90,7 @@ def load_staging_table(
 
     job.result()
 
-    print(
-        "Gold data loaded into BigQuery staging."
-    )
+    print("Gold data loaded into BigQuery staging.")
 
 
 def get_new_batches(
@@ -193,21 +187,15 @@ def register_batch(
 
 
 def main() -> None:
-    client = bigquery.Client(
-        project=PROJECT_ID
-    )
+    client = bigquery.Client(project=PROJECT_ID)
 
-    print(
-        "Starting Gold → BigQuery incremental load..."
-    )
+    print("Starting Gold → BigQuery incremental load...")
 
     create_tables(client)
 
     gold_files = get_gold_files()
 
-    print(
-        f"Found {len(gold_files)} finalized Gold Parquet files."
-    )
+    print(f"Found {len(gold_files)} finalized Gold Parquet files.")
 
     load_staging_table(
         client,
@@ -220,14 +208,10 @@ def main() -> None:
         print("No new batches to process.")
         return
 
-    print(
-        f"New batches found: {new_batches}"
-    )
+    print(f"New batches found: {new_batches}")
 
     for batch_id in new_batches:
-        print(
-            f"Processing batch {batch_id}..."
-        )
+        print(f"Processing batch {batch_id}...")
 
         merge_batch(
             client,
@@ -239,13 +223,9 @@ def main() -> None:
             batch_id,
         )
 
-        print(
-            f"Batch {batch_id} processed successfully."
-        )
+        print(f"Batch {batch_id} processed successfully.")
 
-    print(
-        "Incremental load completed successfully."
-    )
+    print("Incremental load completed successfully.")
 
 
 if __name__ == "__main__":

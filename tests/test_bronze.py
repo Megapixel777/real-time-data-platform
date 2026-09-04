@@ -36,11 +36,7 @@ def test_bronze_main(
     mock_kafka_df = Mock()
 
     (
-        mock_spark.readStream.format.return_value
-        .option.return_value
-        .option.return_value
-        .option.return_value
-        .load.return_value
+        mock_spark.readStream.format.return_value.option.return_value.option.return_value.option.return_value.load.return_value
     ) = mock_kafka_df
 
     # Events DataFrame
@@ -51,19 +47,13 @@ def test_bronze_main(
     mock_query = Mock()
 
     (
-        mock_events_df.writeStream.format.return_value
-        .outputMode.return_value
-        .option.return_value
-        .option.return_value
-        .start.return_value
+        mock_events_df.writeStream.format.return_value.outputMode.return_value.option.return_value.option.return_value.start.return_value
     ) = mock_query
 
     bronze.main()
 
     # Spark
-    mock_builder.appName.assert_called_once_with(
-        "real-time-data-platform"
-    )
+    mock_builder.appName.assert_called_once_with("real-time-data-platform")
 
     mock_builder.master.assert_called_once_with("local[*]")
 

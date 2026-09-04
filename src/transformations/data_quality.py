@@ -21,15 +21,12 @@ def _quality_condition(df: DataFrame):
         & col("event_timestamp").isNotNull()
     )
 
-    item_validations = (
-        (col("event_type") != "order_item_added")
-        | (
-            col("product_id").isNotNull()
-            & col("quantity").isNotNull()
-            & (col("quantity") > 0)
-            & col("unit_price").isNotNull()
-            & (col("unit_price") > 0)
-        )
+    item_validations = (col("event_type") != "order_item_added") | (
+        col("product_id").isNotNull()
+        & col("quantity").isNotNull()
+        & (col("quantity") > 0)
+        & col("unit_price").isNotNull()
+        & (col("unit_price") > 0)
     )
 
     return base_validations & item_validations
