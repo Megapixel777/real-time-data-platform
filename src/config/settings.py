@@ -33,6 +33,17 @@ GCP_CREDENTIALS = os.getenv(
     ),
 )
 
+BIGQUERY_DATASET = os.getenv(
+    "BIGQUERY_DATASET",
+    "ecommerce",
+)
+
+BIGQUERY_ORDER_SUMMARY_TABLE = os.getenv(
+    "BIGQUERY_ORDER_SUMMARY_TABLE",
+    "order_summary",
+)
+
+
 if ENVIRONMENT == "gcp":
     BRONZE_PATH = GCS_BRONZE_PATH
     SILVER_PATH = GCS_SILVER_PATH
