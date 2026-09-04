@@ -25,6 +25,7 @@ def test_data_quality():
             "PROD-1",
             2,
             10.50,
+            "2026-09-03T10:00:00Z",
         ),
         (
             "event-2",
@@ -34,6 +35,7 @@ def test_data_quality():
             "PROD-2",
             -1,
             20.00,
+            "2026-09-03T10:01:00Z",
         ),
         (
             "event-3",
@@ -43,6 +45,7 @@ def test_data_quality():
             None,
             None,
             None,
+            "2026-09-03T10:02:00Z",
         ),
     ]
 
@@ -54,6 +57,7 @@ def test_data_quality():
         "product_id",
         "quantity",
         "unit_price",
+        "event_timestamp",
     ]
 
     df = spark.createDataFrame(data, columns)
@@ -86,6 +90,7 @@ def test_invalid_events_are_deduplicated():
             "PROD-001",
             -5,
             Decimal("100.00"),
+            "2026-09-03T10:00:00Z",
         ),
         (
             "invalid-001",
@@ -95,6 +100,7 @@ def test_invalid_events_are_deduplicated():
             "PROD-001",
             -5,
             Decimal("100.00"),
+            "2026-09-03T10:00:00Z",
         ),
     ]
 
@@ -106,6 +112,7 @@ def test_invalid_events_are_deduplicated():
         "product_id",
         "quantity",
         "unit_price",
+        "event_timestamp",
     ]
 
     df = spark.createDataFrame(data, columns)

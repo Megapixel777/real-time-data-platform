@@ -6,18 +6,14 @@ from src.config.settings import (
     SILVER_CHECKPOINT,
     SILVER_PATH,
 )
-
 from src.transformations.data_quality import (
     get_invalid_events,
     get_valid_events,
 )
-
 from src.transformations.silver import transform_silver
 
 
-KAFKA_PACKAGE = (
-    "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3"
-)
+KAFKA_PACKAGE = "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3"
 
 GCS_CONNECTOR_JAR = (
     r"C:\Users\thoma\Proyectos\real-time-data-platform"
@@ -32,20 +28,12 @@ GCP_CREDENTIALS = (
 
 
 def create_spark_session() -> SparkSession:
-    """Create Spark session configured for GCS."""
-
-    spark = (
+    return (
         SparkSession.builder
         .appName("silver-layer")
         .master("local[*]")
-        .config(
-            "spark.jars.packages",
-            KAFKA_PACKAGE,
-        )
-        .config(
-            "spark.jars",
-            GCS_CONNECTOR_JAR,
-        )
+        .config("spark.jars.packages", KAFKA_PACKAGE)
+        .config("spark.jars", GCS_CONNECTOR_JAR)
         .config(
             "spark.hadoop.fs.gs.impl",
             "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
@@ -97,12 +85,8 @@ def create_spark_session() -> SparkSession:
         .getOrCreate()
     )
 
-    return spark
-
 
 def process_batch(batch_df, batch_id) -> None:
-    """Process one Bronze micro-batch."""
-
     valid_df = get_valid_events(batch_df)
 
     invalid_df = (
@@ -110,13 +94,9 @@ def process_batch(batch_df, batch_id) -> None:
         .dropDuplicates(["event_id"])
     )
 
-    # Write invalid records to Quarantine
     if not invalid_df.isEmpty():
-        (
-            invalid_df
-            .write
-            .mode("append")
-            .parquet(QUARANTINE_PATH)
+        invalid_df.write.mode("append").parquet(
+            QUARANTINE_PATH
         )
 
         print(
@@ -124,15 +104,11 @@ def process_batch(batch_df, batch_id) -> None:
             "invalid events sent to Quarantine"
         )
 
-    # Transform and write valid records to Silver
     if not valid_df.isEmpty():
         silver_df = transform_silver(valid_df)
 
-        (
-            silver_df
-            .write
-            .mode("append")
-            .parquet(SILVER_PATH)
+        silver_df.write.mode("append").parquet(
+            SILVER_PATH
         )
 
         print(
@@ -142,7 +118,6 @@ def process_batch(batch_df, batch_id) -> None:
 
 
 def main() -> None:
-
     spark = create_spark_session()
 
     try:
@@ -171,8 +146,7 @@ def main() -> None:
         )
 
         query = (
-            bronze_df
-            .writeStream
+            bronze_df.writeStream
             .foreachBatch(process_batch)
             .option(
                 "checkpointLocation",
